@@ -1,0 +1,105 @@
+syntax = "proto3";
+
+package com.atlantis.nutritionist.grpc;
+
+import "common.proto";
+
+option java_multiple_files = true;
+option java_package = "com.atlantis.nutritionist.grpc.nutriologist";
+option java_outer_classname = "NutriologistServiceProto";
+
+service NutriologistService {
+  rpc CreateNutriologist(CreateNutriologistRequest) returns (NutriologistResponse);
+  rpc GetNutriologist(GetNutriologistRequest) returns (NutriologistResponse);
+  rpc UpdateNutriologist(UpdateNutriologistRequest) returns (NutriologistResponse);
+  rpc DeleteNutriologist(DeleteNutriologistRequest) returns (Empty);
+  rpc ListNutriologists(ListNutriologistsRequest) returns (ListNutriologistsResponse);
+  rpc GetNutriologistByUserId(GetNutriologistByUserIdRequest) returns (NutriologistResponse);
+  rpc SearchNutriologists(SearchNutriologistsRequest) returns (ListNutriologistsResponse);
+}
+
+message Nutriologist {
+  UUID id = 1;
+  UUID user_id = 2;
+  string professional_license = 3;
+  string specialization = 4;
+  string bio = 5;
+  string profile_image_url = 6;
+  string clinic_name = 7;
+  string address = 8;
+  string city = 9;
+  string state = 10;
+  string country = 11;
+  string phone_clinic = 12;
+  int32 years_experience = 13;
+  bool verified = 14;
+  Timestamp created_at = 15;
+  Timestamp updated_at = 16;
+
+  // Nested user information
+  UserInfo user_info = 17;
+}
+
+message CreateNutriologistRequest {
+  UUID user_id = 1;
+  optional string professional_license = 2;
+  optional string specialization = 3;
+  optional string bio = 4;
+  optional string clinic_name = 5;
+  optional string address = 6;
+  optional string city = 7;
+  optional string state = 8;
+  optional string country = 9;
+  optional string phone_clinic = 10;
+  optional int32 years_experience = 11;
+}
+
+message GetNutriologistRequest {
+  UUID id = 1;
+}
+
+message GetNutriologistByUserIdRequest {
+  UUID user_id = 1;
+}
+
+message UpdateNutriologistRequest {
+  UUID id = 1;
+  optional string professional_license = 2;
+  optional string specialization = 3;
+  optional string bio = 4;
+  optional string profile_image_url = 5;
+  optional string clinic_name = 6;
+  optional string address = 7;
+  optional string city = 8;
+  optional string state = 9;
+  optional string country = 10;
+  optional string phone_clinic = 11;
+  optional int32 years_experience = 12;
+  optional bool verified = 13;
+}
+
+message DeleteNutriologistRequest {
+  UUID id = 1;
+}
+
+message ListNutriologistsRequest {
+  PageRequest page_request = 1;
+  optional bool verified_only = 2;
+}
+
+message SearchNutriologistsRequest {
+  PageRequest page_request = 1;
+  optional string specialization = 2;
+  optional string city = 3;
+  optional string state = 4;
+  optional bool verified_only = 5;
+}
+
+message ListNutriologistsResponse {
+  repeated Nutriologist nutriologists = 1;
+  PageResponse page_response = 2;
+}
+
+message NutriologistResponse {
+  Nutriologist nutriologist = 1;
+}

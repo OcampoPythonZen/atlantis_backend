@@ -1,0 +1,96 @@
+syntax = "proto3";
+
+package com.atlantis.nutritionist.grpc;
+
+option java_multiple_files = true;
+option java_package = "com.atlantis.nutritionist.grpc.common";
+option java_outer_classname = "CommonProto";
+
+// Common message types
+
+message Timestamp {
+  int64 seconds = 1;
+  int32 nanos = 2;
+}
+
+message UUID {
+  string value = 1;
+}
+
+message Empty {}
+
+message Status {
+  int32 code = 1;
+  string message = 2;
+}
+
+message PageRequest {
+  int32 page = 1;
+  int32 size = 2;
+  string sort_by = 3;
+  bool ascending = 4;
+}
+
+message PageResponse {
+  int32 total_pages = 1;
+  int64 total_elements = 2;
+  int32 current_page = 3;
+  int32 size = 4;
+}
+
+message UserInfo {
+  string email = 1;
+  string first_name = 2;
+  string last_name = 3;
+  string phone = 4;
+}
+
+// Enums
+
+enum UserRole {
+  ROLE_UNKNOWN = 0;
+  ROLE_NUTRIOLOGIST = 1;
+  ROLE_PATIENT = 2;
+  ROLE_ADMIN = 3;
+}
+
+enum Gender {
+  GENDER_UNSPECIFIED = 0;
+  MALE = 1;
+  FEMALE = 2;
+  OTHER = 3;
+}
+
+enum GoalType {
+  GOAL_UNSPECIFIED = 0;
+  WEIGHT_LOSS = 1;
+  MUSCLE_GAIN = 2;
+  HEALTH_IMPROVEMENT = 3;
+  DISEASE_MANAGEMENT = 4;
+}
+
+enum PlanType {
+  PLAN_UNSPECIFIED = 0;
+  BALANCED = 1;
+  LOW_CARB = 2;
+  LOW_FAT = 3;
+  DIABETIC = 4;
+  RENAL = 5;
+  CARDIAC = 6;
+  KETOGENIC = 7;
+}
+
+enum MealType {
+  MEAL_UNSPECIFIED = 0;
+  BREAKFAST = 1;
+  LUNCH = 2;
+  DINNER = 3;
+  SNACK = 4;
+}
+
+enum ConsultationType {
+  CONSULTATION_UNSPECIFIED = 0;
+  INITIAL = 1;
+  FOLLOW_UP = 2;
+  EMERGENCY = 3;
+}

@@ -1,0 +1,107 @@
+syntax = "proto3";
+
+package com.atlantis.nutritionist.grpc;
+
+import "common.proto";
+
+option java_multiple_files = true;
+option java_package = "com.atlantis.nutritionist.grpc.measurement";
+option java_outer_classname = "MeasurementServiceProto";
+
+service MeasurementService {
+  rpc CreateMeasurement(CreateMeasurementRequest) returns (MeasurementResponse);
+  rpc GetMeasurement(GetMeasurementRequest) returns (MeasurementResponse);
+  rpc GetClientMeasurements(GetClientMeasurementsRequest) returns (ListMeasurementsResponse);
+  rpc GetLatestMeasurement(GetLatestMeasurementRequest) returns (MeasurementResponse);
+  rpc DeleteMeasurement(DeleteMeasurementRequest) returns (Empty);
+}
+
+message Measurement {
+  UUID id = 1;
+  UUID client_id = 2;
+  UUID nutritionist_id = 3;
+  Timestamp measurement_date = 4;
+
+  // Basic measurements
+  optional double weight_kg = 5;
+  optional double height_cm = 6;
+  optional double imc = 7;
+
+  // Body composition
+  optional double body_fat_percentage = 8;
+  optional double muscle_mass_kg = 9;
+  optional double visceral_fat_percentage = 10;
+  optional double water_percentage = 11;
+
+  // Circumferences
+  optional double waist_cm = 12;
+  optional double hip_cm = 13;
+  optional double waist_hip_ratio = 14;
+
+  // Vital signs
+  optional int32 blood_pressure_systolic = 15;
+  optional int32 blood_pressure_diastolic = 16;
+  optional int32 heart_rate_bpm = 17;
+
+  // Lab results
+  optional double fasting_glucose_mg_dl = 18;
+  optional double total_cholesterol_mg_dl = 19;
+  optional double ldl_cholesterol_mg_dl = 20;
+  optional double hdl_cholesterol_mg_dl = 21;
+  optional double triglycerides_mg_dl = 22;
+  optional double hemoglobin_a1c_percent = 23;
+
+  // Additional
+  optional string notes = 24;
+  Timestamp created_at = 25;
+  Timestamp updated_at = 26;
+}
+
+message CreateMeasurementRequest {
+  UUID client_id = 1;
+  UUID nutritionist_id = 2;
+  optional double weight_kg = 3;
+  optional double height_cm = 4;
+  optional double body_fat_percentage = 5;
+  optional double muscle_mass_kg = 6;
+  optional double waist_cm = 7;
+  optional double hip_cm = 8;
+  optional int32 blood_pressure_systolic = 9;
+  optional int32 blood_pressure_diastolic = 10;
+  optional int32 heart_rate_bpm = 11;
+  optional double fasting_glucose_mg_dl = 12;
+  optional double total_cholesterol_mg_dl = 13;
+  optional double ldl_cholesterol_mg_dl = 14;
+  optional double hdl_cholesterol_mg_dl = 15;
+  optional double triglycerides_mg_dl = 16;
+  optional double hemoglobin_a1c_percent = 17;
+  optional string notes = 18;
+}
+
+message GetMeasurementRequest {
+  UUID id = 1;
+}
+
+message GetClientMeasurementsRequest {
+  UUID client_id = 1;
+  PageRequest page_request = 2;
+  optional Timestamp start_date = 3;
+  optional Timestamp end_date = 4;
+}
+
+message GetLatestMeasurementRequest {
+  UUID client_id = 1;
+}
+
+message DeleteMeasurementRequest {
+  UUID id = 1;
+}
+
+message ListMeasurementsResponse {
+  repeated Measurement measurements = 1;
+  PageResponse page_response = 2;
+}
+
+message MeasurementResponse {
+  Measurement measurement = 1;
+}

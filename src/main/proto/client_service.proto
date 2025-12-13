@@ -1,0 +1,85 @@
+syntax = "proto3";
+
+package com.atlantis.nutritionist.grpc;
+
+import "common.proto";
+
+option java_multiple_files = true;
+option java_package = "com.atlantis.nutritionist.grpc.client";
+option java_outer_classname = "ClientServiceProto";
+
+service ClientService {
+  rpc CreateClient(CreateClientRequest) returns (ClientResponse);
+  rpc GetClient(GetClientRequest) returns (ClientResponse);
+  rpc UpdateClient(UpdateClientRequest) returns (ClientResponse);
+  rpc DeleteClient(DeleteClientRequest) returns (Empty);
+  rpc ListClients(ListClientsRequest) returns (ListClientsResponse);
+  rpc GetClientByUserId(GetClientByUserIdRequest) returns (ClientResponse);
+}
+
+message Client {
+  UUID id = 1;
+  UUID user_id = 2;
+  string date_of_birth = 3; // ISO 8601 date format
+  Gender gender = 4;
+  string blood_type = 5;
+  string rh_factor = 6;
+  string nationality = 7;
+  string emergency_contact_name = 8;
+  string emergency_contact_phone = 9;
+  string emergency_contact_relationship = 10;
+  Timestamp created_at = 11;
+  Timestamp updated_at = 12;
+
+  // Nested user information
+  UserInfo user_info = 13;
+}
+
+message CreateClientRequest {
+  UUID user_id = 1;
+  string date_of_birth = 2;
+  Gender gender = 3;
+  optional string blood_type = 4;
+  optional string rh_factor = 5;
+  optional string nationality = 6;
+  optional string emergency_contact_name = 7;
+  optional string emergency_contact_phone = 8;
+  optional string emergency_contact_relationship = 9;
+}
+
+message GetClientRequest {
+  UUID id = 1;
+}
+
+message GetClientByUserIdRequest {
+  UUID user_id = 1;
+}
+
+message UpdateClientRequest {
+  UUID id = 1;
+  optional string date_of_birth = 2;
+  optional Gender gender = 3;
+  optional string blood_type = 4;
+  optional string rh_factor = 5;
+  optional string nationality = 6;
+  optional string emergency_contact_name = 7;
+  optional string emergency_contact_phone = 8;
+  optional string emergency_contact_relationship = 9;
+}
+
+message DeleteClientRequest {
+  UUID id = 1;
+}
+
+message ListClientsRequest {
+  PageRequest page_request = 1;
+}
+
+message ListClientsResponse {
+  repeated Client clients = 1;
+  PageResponse page_response = 2;
+}
+
+message ClientResponse {
+  Client client = 1;
+}

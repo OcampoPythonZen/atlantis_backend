@@ -1,0 +1,36 @@
+syntax = "proto3";
+
+package com.atlantis.nutritionist.grpc;
+
+import "common.proto";
+
+option java_multiple_files = true;
+option java_package = "com.atlantis.nutritionist.grpc.health";
+option java_outer_classname = "HealthServiceProto";
+
+service HealthCheckService {
+  rpc Check(HealthCheckRequest) returns (HealthCheckResponse);
+  rpc GetSystemStatus(Empty) returns (SystemStatusResponse);
+}
+
+message HealthCheckRequest {
+  optional string service = 1; // Optional specific service to check
+}
+
+message HealthCheckResponse {
+  enum Status {
+    UNKNOWN = 0;
+    SERVING = 1;
+    NOT_SERVING = 2;
+  }
+  Status status = 1;
+  string message = 2;
+}
+
+message SystemStatusResponse {
+  bool database_connected = 1;
+  bool grpc_server_running = 2;
+  string application_version = 3;
+  int64 uptime_seconds = 4;
+  map<string, string> system_info = 5;
+}

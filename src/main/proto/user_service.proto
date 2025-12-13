@@ -1,0 +1,74 @@
+syntax = "proto3";
+
+package com.atlantis.nutritionist.grpc;
+
+import "common.proto";
+
+option java_multiple_files = true;
+option java_package = "com.atlantis.nutritionist.grpc.user";
+option java_outer_classname = "UserServiceProto";
+
+service UserService {
+  rpc CreateUser(CreateUserRequest) returns (UserResponse);
+  rpc GetUser(GetUserRequest) returns (UserResponse);
+  rpc UpdateUser(UpdateUserRequest) returns (UserResponse);
+  rpc DeleteUser(DeleteUserRequest) returns (Empty);
+  rpc ListUsers(ListUsersRequest) returns (ListUsersResponse);
+  rpc GetUserByEmail(GetUserByEmailRequest) returns (UserResponse);
+}
+
+message User {
+  UUID id = 1;
+  string email = 2;
+  string first_name = 3;
+  string last_name = 4;
+  string phone = 5;
+  repeated UserRole roles = 6;
+  bool is_active = 7;
+  Timestamp created_at = 8;
+  Timestamp updated_at = 9;
+}
+
+message CreateUserRequest {
+  string email = 1;
+  string password = 2;
+  string first_name = 3;
+  string last_name = 4;
+  string phone = 5;
+  repeated UserRole roles = 6;
+}
+
+message GetUserRequest {
+  UUID id = 1;
+}
+
+message GetUserByEmailRequest {
+  string email = 1;
+}
+
+message UpdateUserRequest {
+  UUID id = 1;
+  optional string email = 2;
+  optional string first_name = 3;
+  optional string last_name = 4;
+  optional string phone = 5;
+  optional bool is_active = 6;
+}
+
+message DeleteUserRequest {
+  UUID id = 1;
+}
+
+message ListUsersRequest {
+  PageRequest page_request = 1;
+  optional UserRole role_filter = 2;
+}
+
+message ListUsersResponse {
+  repeated User users = 1;
+  PageResponse page_response = 2;
+}
+
+message UserResponse {
+  User user = 1;
+}
