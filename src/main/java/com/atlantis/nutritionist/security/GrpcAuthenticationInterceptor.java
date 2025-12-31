@@ -3,14 +3,16 @@ package com.atlantis.nutritionist.security;
 import com.atlantis.nutritionist.exception.AuthenticationException;
 import com.atlantis.nutritionist.jwt.JwtTokenValidator;
 import com.atlantis.nutritionist.jwt.model.TokenClaims;
+import com.atlantis.nutritionist.service.TokenBlacklistService;
 import com.atlantis.nutritionist.util.MetadataUtils;
 import io.grpc.*;
+import net.devh.boot.grpc.server.interceptor.GrpcGlobalServerInterceptor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 
-import java.lang.reflect.Method;
 import java.util.Optional;
+import java.util.Set;
 
 /**
  * gRPC server interceptor that handles JWT authentication for all service methods.
@@ -31,14 +33,35 @@ import java.util.Optional;
  * 6. Proceed to next interceptor/service method
  */
 @Component
+@GrpcGlobalServerInterceptor
 public class GrpcAuthenticationInterceptor implements ServerInterceptor {
 
     private static final Logger log = LoggerFactory.getLogger(GrpcAuthenticationInterceptor.class);
 
     private final JwtTokenValidator jwtTokenValidator;
+    private final TokenBlacklistService tokenBlacklistService;
 
-    public GrpcAuthenticationInterceptor(JwtTokenValidator jwtTokenValidator) {
+    /**
+     * Set of public endpoints that don't require authentication.
+     * Format: "package.ServiceName/MethodName"
+     */
+    private static final Set<String> PUBLIC_ENDPOINTS = Set.of(
+            // Auth service endpoints
+            "auth.AuthService/Login",
+            "auth.AuthService/Register",
+            "auth.AuthService/RefreshToken",
+            "auth.AuthService/ValidateToken",
+            // Health check endpoints
+            "com.atlantis.nutritionist.grpc.HealthCheckService/Check",
+            "com.atlantis.nutritionist.grpc.HealthCheckService/GetSystemStatus",
+            "grpc.health.v1.Health/Check",
+            "grpc.health.v1.Health/Watch"
+    );
+
+    public GrpcAuthenticationInterceptor(JwtTokenValidator jwtTokenValidator,
+                                          TokenBlacklistService tokenBlacklistService) {
         this.jwtTokenValidator = jwtTokenValidator;
+        this.tokenBlacklistService = tokenBlacklistService;
     }
 
     @Override
@@ -67,6 +90,12 @@ public class GrpcAuthenticationInterceptor implements ServerInterceptor {
 
             String token = tokenOptional.get();
             log.debug("Token extracted for method: {}", methodName);
+
+            // Check if token is blacklisted (logged out)
+            if (tokenBlacklistService.isBlacklisted(token)) {
+                log.warn("Blacklisted token used for endpoint: {}", methodName);
+                throw new AuthenticationException("Token has been revoked. Please login again.");
+            }
 
             // Validate token and extract claims
             TokenClaims tokenClaims = jwtTokenValidator.validateAndParse(token);
@@ -101,67 +130,20 @@ public class GrpcAuthenticationInterceptor implements ServerInterceptor {
     }
 
     /**
-     * Checks if the method being called is annotated with @PublicEndpoint.
-     * Uses reflection to find the annotation on the service implementation method.
+     * Checks if the method being called is a public endpoint.
+     * Uses a static set of known public endpoints for simplicity.
      *
      * @param call The server call
-     * @return true if method is public (has @PublicEndpoint annotation)
+     * @return true if method is public (no authentication required)
      */
     private <ReqT, RespT> boolean isPublicEndpoint(ServerCall<ReqT, RespT> call) {
-        try {
-            String fullMethodName = call.getMethodDescriptor().getFullMethodName();
-            // Format: package.ServiceName/MethodName
-            String[] parts = fullMethodName.split("/");
-            if (parts.length != 2) {
-                return false;
-            }
+        String fullMethodName = call.getMethodDescriptor().getFullMethodName();
+        boolean isPublic = PUBLIC_ENDPOINTS.contains(fullMethodName);
 
-            String methodName = parts[1];
-
-            // Get the service descriptor to find the service class
-            ServerMethodDefinition<ReqT, RespT> methodDef = call.getMethodDescriptor().getServiceName() != null ?
-                    findMethodDefinition(call) : null;
-
-            if (methodDef == null) {
-                // If we can't find the method, default to requiring authentication
-                return false;
-            }
-
-            // Try to find @PublicEndpoint annotation
-            // Note: This is a simplified approach. In production, you might want to cache these lookups.
-            return hasPublicEndpointAnnotation(methodName, methodDef);
-
-        } catch (Exception e) {
-            log.warn("Error checking for @PublicEndpoint annotation, defaulting to authenticated", e);
-            return false; // Default to requiring authentication on error
+        if (isPublic) {
+            log.debug("Endpoint {} is marked as public", fullMethodName);
         }
-    }
 
-    /**
-     * Attempts to find the ServerMethodDefinition for the current call.
-     */
-    private <ReqT, RespT> ServerMethodDefinition<ReqT, RespT> findMethodDefinition(ServerCall<ReqT, RespT> call) {
-        // This is a placeholder - in actual implementation, you'd look up the method definition
-        // from the server's registered services
-        return null;
-    }
-
-    /**
-     * Checks if a method has the @PublicEndpoint annotation.
-     * This implementation looks for the annotation on the service implementation class.
-     */
-    private <ReqT, RespT> boolean hasPublicEndpointAnnotation(
-            String methodName,
-            ServerMethodDefinition<ReqT, RespT> methodDef) {
-
-        // In a real implementation, you would:
-        // 1. Get the service implementation class from methodDef
-        // 2. Use reflection to find the method
-        // 3. Check for @PublicEndpoint annotation
-        //
-        // For now, we'll use a simpler approach with a registry pattern
-        // (to be implemented in service classes)
-
-        return false; // Default implementation
+        return isPublic;
     }
 }

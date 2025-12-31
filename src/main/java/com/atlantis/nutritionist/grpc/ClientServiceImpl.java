@@ -1,59 +1,112 @@
 package com.atlantis.nutritionist.grpc;
 
+import com.atlantis.nutritionist.entity.Client;
+import com.atlantis.nutritionist.entity.User;
+import com.atlantis.nutritionist.exception.EntityAlreadyExistsException;
+import com.atlantis.nutritionist.exception.EntityNotFoundException;
+import com.atlantis.nutritionist.exception.ValidationException;
 import com.atlantis.nutritionist.grpc.client.*;
 import com.atlantis.nutritionist.grpc.common.Empty;
+import com.atlantis.nutritionist.grpc.common.Gender;
+import com.atlantis.nutritionist.grpc.common.UserInfo;
+import com.atlantis.nutritionist.repository.ClientRepository;
+import com.atlantis.nutritionist.service.ClientService;
+import com.atlantis.nutritionist.validation.RequestValidator;
 import io.grpc.stub.StreamObserver;
 import net.devh.boot.grpc.server.service.GrpcService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.time.LocalDate;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.UUID;
+import java.util.stream.Collectors;
+
 /**
  * gRPC service implementation for Client (Patient) operations.
- * Handles all patient/client profile management endpoints.
- *
- * TODO: Implement actual business logic with JPA repositories and services
+ * Handles all patient/client profile management endpoints with full database integration.
  */
 @GrpcService
 public class ClientServiceImpl extends ClientServiceGrpc.ClientServiceImplBase {
 
     private static final Logger log = LoggerFactory.getLogger(ClientServiceImpl.class);
 
+    private final ClientService clientService;
+    private final ClientRepository clientRepository;
+
+    public ClientServiceImpl(ClientService clientService, ClientRepository clientRepository) {
+        this.clientService = clientService;
+        this.clientRepository = clientRepository;
+    }
+
     @Override
     public void createClient(CreateClientRequest request, StreamObserver<ClientResponse> responseObserver) {
         log.info("Creating client for user ID: {}", request.getUserId().getValue());
 
         try {
-            // TODO: Implement actual client creation logic
-            // 1. Validate user exists and has PATIENT role
-            // 2. Check if client profile already exists for user
-            // 3. Validate date_of_birth format (ISO 8601)
-            // 4. Save client profile to database
-            // 5. Return created client with user info
+            // Validate input
+            Map<String, String> errors = new HashMap<>();
+            RequestValidator.validateRequired("user_id", request.getUserId(), errors);
+            RequestValidator.validateRequired("date_of_birth", request.getDateOfBirth(), errors);
+            RequestValidator.validateRequired("gender", request.getGender(), errors);
+            RequestValidator.throwIfErrors(errors);
 
-            // Mock response for now
+            UUID userId = UUID.fromString(request.getUserId().getValue());
+
+            // Check if client already exists for this user
+            if (clientRepository.existsByUserId(userId)) {
+                throw new EntityAlreadyExistsException("Client profile already exists for user: " + userId);
+            }
+
+            // Parse date of birth
+            LocalDate dateOfBirth = LocalDate.parse(request.getDateOfBirth());
+
+            // Convert gender enum to string
+            String gender = convertGenderToString(request.getGender());
+
+            // Create client
+            Client client = clientService.createClient(
+                userId,
+                dateOfBirth,
+                gender,
+                request.hasBloodType() ? request.getBloodType() : null,
+                request.hasNationality() ? request.getNationality() : null
+            );
+
+            // Update emergency contact if provided
+            if (request.hasEmergencyContactName() || request.hasEmergencyContactPhone() ||
+                request.hasEmergencyContactRelationship()) {
+                client = clientService.updateEmergencyContact(
+                    client.getId(),
+                    request.hasEmergencyContactName() ? request.getEmergencyContactName() : null,
+                    request.hasEmergencyContactPhone() ? request.getEmergencyContactPhone() : null,
+                    request.hasEmergencyContactRelationship() ? request.getEmergencyContactRelationship() : null
+                );
+            }
+
+            // Update Rh factor if provided
+            if (request.hasRhFactor()) {
+                client.setRhFactor(request.getRhFactor());
+                client = clientRepository.save(client);
+            }
+
+            log.info("Client created successfully with ID: {}", client.getId());
+
+            // Build response
             ClientResponse response = ClientResponse.newBuilder()
-                    .setClient(Client.newBuilder()
-                            .setUserId(request.getUserId())
-                            .setDateOfBirth(request.getDateOfBirth())
-                            .setGender(request.getGender())
-                            .setBloodType(request.hasBloodType() ? request.getBloodType() : "")
-                            .setRhFactor(request.hasRhFactor() ? request.getRhFactor() : "")
-                            .setNationality(request.hasNationality() ? request.getNationality() : "")
-                            .setEmergencyContactName(request.hasEmergencyContactName() ? request.getEmergencyContactName() : "")
-                            .setEmergencyContactPhone(request.hasEmergencyContactPhone() ? request.getEmergencyContactPhone() : "")
-                            .setEmergencyContactRelationship(request.hasEmergencyContactRelationship() ? request.getEmergencyContactRelationship() : "")
-                            .build())
+                    .setClient(toProto(client))
                     .build();
 
             responseObserver.onNext(response);
             responseObserver.onCompleted();
+
+        } catch (ValidationException | EntityAlreadyExistsException | EntityNotFoundException e) {
+            throw e;
         } catch (Exception e) {
             log.error("Error creating client", e);
-            responseObserver.onError(
-                    io.grpc.Status.INTERNAL
-                            .withDescription("Error creating client: " + e.getMessage())
-                            .asRuntimeException()
-            );
+            throw new ValidationException("Failed to create client: " + e.getMessage());
         }
     }
 
@@ -62,23 +115,31 @@ public class ClientServiceImpl extends ClientServiceGrpc.ClientServiceImplBase {
         log.info("Getting client with ID: {}", request.getId().getValue());
 
         try {
-            // TODO: Implement actual client retrieval logic
-            // 1. Query database for client by ID
-            // 2. Join with user table to get user info
-            // 3. Return client with nested user info
+            // Validate input
+            Map<String, String> errors = new HashMap<>();
+            RequestValidator.validateRequired("id", request.getId(), errors);
+            RequestValidator.throwIfErrors(errors);
 
-            responseObserver.onError(
-                    io.grpc.Status.UNIMPLEMENTED
-                            .withDescription("Method not yet implemented")
-                            .asRuntimeException()
-            );
+            UUID clientId = UUID.fromString(request.getId().getValue());
+
+            // Find client
+            Client client = clientService.findById(clientId);
+
+            log.info("Client retrieved successfully: {}", clientId);
+
+            // Build response
+            ClientResponse response = ClientResponse.newBuilder()
+                    .setClient(toProto(client))
+                    .build();
+
+            responseObserver.onNext(response);
+            responseObserver.onCompleted();
+
+        } catch (ValidationException | EntityNotFoundException e) {
+            throw e;
         } catch (Exception e) {
             log.error("Error getting client", e);
-            responseObserver.onError(
-                    io.grpc.Status.INTERNAL
-                            .withDescription("Error getting client: " + e.getMessage())
-                            .asRuntimeException()
-            );
+            throw new ValidationException("Failed to get client: " + e.getMessage());
         }
     }
 
@@ -87,25 +148,58 @@ public class ClientServiceImpl extends ClientServiceGrpc.ClientServiceImplBase {
         log.info("Updating client with ID: {}", request.getId().getValue());
 
         try {
-            // TODO: Implement actual client update logic
-            // 1. Validate client exists
-            // 2. Validate date_of_birth format if provided
-            // 3. Update only provided fields (optional fields)
-            // 4. Save updated client
-            // 5. Return updated client with user info
+            // Validate input
+            Map<String, String> errors = new HashMap<>();
+            RequestValidator.validateRequired("id", request.getId(), errors);
+            RequestValidator.throwIfErrors(errors);
 
-            responseObserver.onError(
-                    io.grpc.Status.UNIMPLEMENTED
-                            .withDescription("Method not yet implemented")
-                            .asRuntimeException()
-            );
+            UUID clientId = UUID.fromString(request.getId().getValue());
+
+            // Get existing client
+            Client client = clientService.findById(clientId);
+
+            // Update basic fields
+            LocalDate dateOfBirth = request.hasDateOfBirth() ? LocalDate.parse(request.getDateOfBirth()) : null;
+            String gender = request.hasGender() ? convertGenderToString(request.getGender()) : null;
+            String bloodType = request.hasBloodType() ? request.getBloodType() : null;
+            String nationality = request.hasNationality() ? request.getNationality() : null;
+
+            if (dateOfBirth != null || gender != null || bloodType != null || nationality != null) {
+                client = clientService.updateClient(clientId, dateOfBirth, gender, bloodType, nationality);
+            }
+
+            // Update Rh factor if provided
+            if (request.hasRhFactor()) {
+                client.setRhFactor(request.getRhFactor());
+                client = clientRepository.save(client);
+            }
+
+            // Update emergency contact if any field is provided
+            if (request.hasEmergencyContactName() || request.hasEmergencyContactPhone() ||
+                request.hasEmergencyContactRelationship()) {
+                client = clientService.updateEmergencyContact(
+                    clientId,
+                    request.hasEmergencyContactName() ? request.getEmergencyContactName() : client.getEmergencyContactName(),
+                    request.hasEmergencyContactPhone() ? request.getEmergencyContactPhone() : client.getEmergencyContactPhone(),
+                    request.hasEmergencyContactRelationship() ? request.getEmergencyContactRelationship() : client.getEmergencyContactRelationship()
+                );
+            }
+
+            log.info("Client updated successfully: {}", clientId);
+
+            // Build response
+            ClientResponse response = ClientResponse.newBuilder()
+                    .setClient(toProto(client))
+                    .build();
+
+            responseObserver.onNext(response);
+            responseObserver.onCompleted();
+
+        } catch (ValidationException | EntityNotFoundException e) {
+            throw e;
         } catch (Exception e) {
             log.error("Error updating client", e);
-            responseObserver.onError(
-                    io.grpc.Status.INTERNAL
-                            .withDescription("Error updating client: " + e.getMessage())
-                            .asRuntimeException()
-            );
+            throw new ValidationException("Failed to update client: " + e.getMessage());
         }
     }
 
@@ -114,25 +208,28 @@ public class ClientServiceImpl extends ClientServiceGrpc.ClientServiceImplBase {
         log.info("Deleting client with ID: {}", request.getId().getValue());
 
         try {
-            // TODO: Implement actual client deletion logic
-            // 1. Validate client exists
-            // 2. Check for dependencies (measurements, goals, plans, etc.)
-            // 3. Handle cascade deletion or prevent deletion if dependencies exist
-            // 4. Soft delete or hard delete based on business rules
-            // 5. Return empty response
+            // Validate input
+            Map<String, String> errors = new HashMap<>();
+            RequestValidator.validateRequired("id", request.getId(), errors);
+            RequestValidator.throwIfErrors(errors);
 
-            responseObserver.onError(
-                    io.grpc.Status.UNIMPLEMENTED
-                            .withDescription("Method not yet implemented")
-                            .asRuntimeException()
-            );
+            UUID clientId = UUID.fromString(request.getId().getValue());
+
+            // Delete client
+            clientService.deleteClient(clientId);
+
+            log.info("Client deleted successfully: {}", clientId);
+
+            // Return empty response
+            Empty response = Empty.newBuilder().build();
+            responseObserver.onNext(response);
+            responseObserver.onCompleted();
+
+        } catch (ValidationException | EntityNotFoundException e) {
+            throw e;
         } catch (Exception e) {
             log.error("Error deleting client", e);
-            responseObserver.onError(
-                    io.grpc.Status.INTERNAL
-                            .withDescription("Error deleting client: " + e.getMessage())
-                            .asRuntimeException()
-            );
+            throw new ValidationException("Failed to delete client: " + e.getMessage());
         }
     }
 
@@ -143,24 +240,33 @@ public class ClientServiceImpl extends ClientServiceGrpc.ClientServiceImplBase {
                 request.hasPageRequest() ? request.getPageRequest().getSize() : 10);
 
         try {
-            // TODO: Implement actual client listing logic
-            // 1. Apply pagination from page_request
-            // 2. Query database with pagination
-            // 3. Join with user table to get user info for each client
-            // 4. Return list with page response metadata
+            // Get all clients (TODO: implement pagination in future)
+            List<Client> clients = clientService.findAll();
 
+            // Convert to proto
+            List<com.atlantis.nutritionist.grpc.client.Client> protoClients = clients.stream()
+                    .map(this::toProto)
+                    .collect(Collectors.toList());
+
+            log.info("Listed {} clients", clients.size());
+
+            // Build response
             ListClientsResponse response = ListClientsResponse.newBuilder()
+                    .addAllClients(protoClients)
+                    .setPageResponse(com.atlantis.nutritionist.grpc.common.PageResponse.newBuilder()
+                            .setTotalPages(1)
+                            .setTotalElements(clients.size())
+                            .setCurrentPage(0)
+                            .setSize(clients.size())
+                            .build())
                     .build();
 
             responseObserver.onNext(response);
             responseObserver.onCompleted();
+
         } catch (Exception e) {
             log.error("Error listing clients", e);
-            responseObserver.onError(
-                    io.grpc.Status.INTERNAL
-                            .withDescription("Error listing clients: " + e.getMessage())
-                            .asRuntimeException()
-            );
+            throw new ValidationException("Failed to list clients: " + e.getMessage());
         }
     }
 
@@ -169,23 +275,113 @@ public class ClientServiceImpl extends ClientServiceGrpc.ClientServiceImplBase {
         log.info("Getting client by user ID: {}", request.getUserId().getValue());
 
         try {
-            // TODO: Implement actual client retrieval by user ID
-            // 1. Query database for client by user_id
-            // 2. Join with user table to get user info
-            // 3. Return client with nested user info
+            // Validate input
+            Map<String, String> errors = new HashMap<>();
+            RequestValidator.validateRequired("user_id", request.getUserId(), errors);
+            RequestValidator.throwIfErrors(errors);
 
-            responseObserver.onError(
-                    io.grpc.Status.UNIMPLEMENTED
-                            .withDescription("Method not yet implemented")
-                            .asRuntimeException()
-            );
+            UUID userId = UUID.fromString(request.getUserId().getValue());
+
+            // Find client by user ID
+            Client client = clientService.findByUserId(userId);
+
+            log.info("Client retrieved successfully by user ID: {}", userId);
+
+            // Build response
+            ClientResponse response = ClientResponse.newBuilder()
+                    .setClient(toProto(client))
+                    .build();
+
+            responseObserver.onNext(response);
+            responseObserver.onCompleted();
+
+        } catch (ValidationException | EntityNotFoundException e) {
+            throw e;
         } catch (Exception e) {
             log.error("Error getting client by user ID", e);
-            responseObserver.onError(
-                    io.grpc.Status.INTERNAL
-                            .withDescription("Error getting client by user ID: " + e.getMessage())
-                            .asRuntimeException()
-            );
+            throw new ValidationException("Failed to get client by user ID: " + e.getMessage());
         }
+    }
+
+    /**
+     * Convert Client entity to proto message.
+     */
+    private com.atlantis.nutritionist.grpc.client.Client toProto(Client client) {
+        var builder = com.atlantis.nutritionist.grpc.client.Client.newBuilder()
+                .setId(com.atlantis.nutritionist.grpc.common.UUID.newBuilder()
+                        .setValue(client.getId().toString())
+                        .build())
+                .setUserId(com.atlantis.nutritionist.grpc.common.UUID.newBuilder()
+                        .setValue(client.getUser().getId().toString())
+                        .build())
+                .setDateOfBirth(client.getDateOfBirth().toString())
+                .setGender(convertStringToGender(client.getGender()))
+                .setCreatedAt(com.atlantis.nutritionist.grpc.common.Timestamp.newBuilder()
+                        .setSeconds(client.getCreatedAt().getEpochSecond())
+                        .setNanos(client.getCreatedAt().getNano())
+                        .build())
+                .setUpdatedAt(com.atlantis.nutritionist.grpc.common.Timestamp.newBuilder()
+                        .setSeconds(client.getUpdatedAt().getEpochSecond())
+                        .setNanos(client.getUpdatedAt().getNano())
+                        .build());
+
+        // Add optional fields
+        if (client.getBloodType() != null) {
+            builder.setBloodType(client.getBloodType());
+        }
+        if (client.getRhFactor() != null) {
+            builder.setRhFactor(client.getRhFactor());
+        }
+        if (client.getNationality() != null) {
+            builder.setNationality(client.getNationality());
+        }
+        if (client.getEmergencyContactName() != null) {
+            builder.setEmergencyContactName(client.getEmergencyContactName());
+        }
+        if (client.getEmergencyContactPhone() != null) {
+            builder.setEmergencyContactPhone(client.getEmergencyContactPhone());
+        }
+        if (client.getEmergencyContactRelationship() != null) {
+            builder.setEmergencyContactRelationship(client.getEmergencyContactRelationship());
+        }
+
+        // Add user info
+        User user = client.getUser();
+        UserInfo userInfo = UserInfo.newBuilder()
+                .setEmail(user.getEmail())
+                .setFirstName(user.getFirstName())
+                .setLastName(user.getLastName())
+                .setPhone(user.getPhone() != null ? user.getPhone() : "")
+                .build();
+        builder.setUserInfo(userInfo);
+
+        return builder.build();
+    }
+
+    /**
+     * Convert Gender enum to string for database.
+     */
+    private String convertGenderToString(Gender gender) {
+        return switch (gender) {
+            case MALE -> "MALE";
+            case FEMALE -> "FEMALE";
+            case OTHER -> "OTHER";
+            default -> throw new ValidationException("Invalid gender: " + gender);
+        };
+    }
+
+    /**
+     * Convert string to Gender enum for proto.
+     */
+    private Gender convertStringToGender(String gender) {
+        if (gender == null) {
+            return Gender.GENDER_UNSPECIFIED;
+        }
+        return switch (gender.toUpperCase()) {
+            case "MALE" -> Gender.MALE;
+            case "FEMALE" -> Gender.FEMALE;
+            case "OTHER" -> Gender.OTHER;
+            default -> Gender.GENDER_UNSPECIFIED;
+        };
     }
 }

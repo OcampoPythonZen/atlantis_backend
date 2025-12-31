@@ -2,6 +2,7 @@ package com.atlantis.nutritionist.security;
 
 import com.atlantis.nutritionist.exception.AuthorizationException;
 import io.grpc.*;
+import net.devh.boot.grpc.server.interceptor.GrpcGlobalServerInterceptor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
@@ -31,6 +32,7 @@ import org.springframework.stereotype.Component;
  * - Can integrate with Spring Security's authorization framework
  */
 @Component
+@GrpcGlobalServerInterceptor
 public class GrpcAuthorizationInterceptor implements ServerInterceptor {
 
     private static final Logger log = LoggerFactory.getLogger(GrpcAuthorizationInterceptor.class);

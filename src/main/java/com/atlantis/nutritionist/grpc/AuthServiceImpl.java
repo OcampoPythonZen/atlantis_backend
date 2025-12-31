@@ -11,6 +11,7 @@ import com.atlantis.nutritionist.jwt.JwtTokenValidator;
 import com.atlantis.nutritionist.jwt.model.JwtToken;
 import com.atlantis.nutritionist.jwt.model.TokenClaims;
 import com.atlantis.nutritionist.security.PublicEndpoint;
+import com.atlantis.nutritionist.service.TokenBlacklistService;
 import com.atlantis.nutritionist.service.UserService;
 import com.atlantis.nutritionist.validation.RequestValidator;
 import io.grpc.stub.StreamObserver;
@@ -32,7 +33,7 @@ import java.util.stream.Collectors;
  * - Role assignment
  * - Password verification and updates
  *
- * Note: Token blacklist for logout not yet implemented (Phase 6)
+ * Token blacklist implemented for logout and session invalidation.
  */
 @GrpcService
 public class AuthServiceImpl extends AuthServiceGrpc.AuthServiceImplBase {
@@ -43,15 +44,18 @@ public class AuthServiceImpl extends AuthServiceGrpc.AuthServiceImplBase {
     private final JwtTokenValidator jwtTokenValidator;
     private final PasswordEncoder passwordEncoder;
     private final UserService userService;
+    private final TokenBlacklistService tokenBlacklistService;
 
     public AuthServiceImpl(JwtTokenProvider jwtTokenProvider,
                           JwtTokenValidator jwtTokenValidator,
                           PasswordEncoder passwordEncoder,
-                          UserService userService) {
+                          UserService userService,
+                          TokenBlacklistService tokenBlacklistService) {
         this.jwtTokenProvider = jwtTokenProvider;
         this.jwtTokenValidator = jwtTokenValidator;
         this.passwordEncoder = passwordEncoder;
         this.userService = userService;
+        this.tokenBlacklistService = tokenBlacklistService;
     }
 
     /**
@@ -213,13 +217,17 @@ public class AuthServiceImpl extends AuthServiceGrpc.AuthServiceImplBase {
             // Validate refresh token
             TokenClaims tokenClaims = jwtTokenValidator.validateAndParse(request.getRefreshToken());
 
+            // Check if token is blacklisted
+            if (tokenBlacklistService.isBlacklisted(request.getRefreshToken())) {
+                throw new AuthenticationException("Token has been revoked");
+            }
+
             // Verify user still exists and is active
             User user = userService.findById(UUID.fromString(tokenClaims.subject()));
             if (!user.getIsActive()) {
                 throw new AuthenticationException("Account is disabled");
             }
 
-            // Note: Token blacklist not yet implemented (Phase 6)
             log.info("Refresh token validated successfully for user: {}", tokenClaims.subject());
 
             // Generate new JWT tokens
@@ -254,7 +262,7 @@ public class AuthServiceImpl extends AuthServiceGrpc.AuthServiceImplBase {
 
     /**
      * Logout user by invalidating their token.
-     * TODO (Phase 5): Implement token blacklist mechanism.
+     * Adds the token to the blacklist so it can no longer be used.
      */
     @Override
     public void logout(LogoutRequest request, StreamObserver<Empty> responseObserver) {
@@ -269,17 +277,15 @@ public class AuthServiceImpl extends AuthServiceGrpc.AuthServiceImplBase {
             // Validate token (to ensure it's a valid format)
             TokenClaims tokenClaims = jwtTokenValidator.validateAndParse(request.getToken());
 
-            // TODO (Phase 5): Add token to blacklist
-            // tokenBlacklistService.blacklist(request.getToken(), tokenClaims.expiresAt());
-            //
-            // Implementation options:
-            // 1. Redis-based blacklist with TTL
-            // 2. Database table with expiration cleanup job
-            // 3. In-memory cache (not recommended for production)
+            // Add token to blacklist
+            tokenBlacklistService.blacklistToken(
+                    request.getToken(),
+                    tokenClaims.expiresAt(),
+                    UUID.fromString(tokenClaims.subject()),
+                    "logout"
+            );
 
             log.info("User logged out successfully: {}", tokenClaims.subject());
-            log.warn("Note: Token blacklist not yet implemented (Phase 5). " +
-                    "Token will remain valid until expiration.");
 
             // Return empty response
             Empty response = Empty.newBuilder().build();
@@ -296,7 +302,7 @@ public class AuthServiceImpl extends AuthServiceGrpc.AuthServiceImplBase {
 
     /**
      * Change user password.
-     * TODO (Phase 5): Implement password update in database.
+     * Updates the password in the database after validating the old password.
      */
     @Override
     public void changePassword(ChangePasswordRequest request, StreamObserver<Empty> responseObserver) {
