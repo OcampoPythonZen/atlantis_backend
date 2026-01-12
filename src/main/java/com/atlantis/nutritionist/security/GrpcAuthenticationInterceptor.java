@@ -44,13 +44,14 @@ public class GrpcAuthenticationInterceptor implements ServerInterceptor {
     /**
      * Set of public endpoints that don't require authentication.
      * Format: "package.ServiceName/MethodName"
+     * IMPORTANT: Must match the full method name from proto package definition
      */
     private static final Set<String> PUBLIC_ENDPOINTS = Set.of(
-            // Auth service endpoints
-            "auth.AuthService/Login",
-            "auth.AuthService/Register",
-            "auth.AuthService/RefreshToken",
-            "auth.AuthService/ValidateToken",
+            // Auth service endpoints (using full package from auth_service.proto)
+            "com.atlantis.nutritionist.grpc.AuthService/Login",
+            "com.atlantis.nutritionist.grpc.AuthService/Register",
+            "com.atlantis.nutritionist.grpc.AuthService/RefreshToken",
+            "com.atlantis.nutritionist.grpc.AuthService/ValidateToken",
             // Health check endpoints
             "com.atlantis.nutritionist.grpc.HealthCheckService/Check",
             "com.atlantis.nutritionist.grpc.HealthCheckService/GetSystemStatus",

@@ -2,7 +2,8 @@
 -- SEED DATA FOR NUTRITIONIST APPLICATION
 -- ============================================
 -- Password for all users: "password123"
--- BCrypt hash: $2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy
+-- BCrypt hash (cost factor 10, compatible with Spring Security BCryptPasswordEncoder):
+-- $2b$10$ykKqBdzuQLsfKxf7GHpvSe1S9dFR0/ynL.eJUid25QbSRhvlX.pT6
 
 -- ============================================
 -- USERS
@@ -11,27 +12,27 @@
 -- Nutriologist 1: Dr. Maria Rodriguez
 INSERT INTO users (id, email, password, first_name, last_name, phone, is_active)
 VALUES
-('11111111-1111-1111-1111-111111111111', 'maria.rodriguez@nutrition.com', '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy', 'Maria', 'Rodriguez', '+1-555-0101', true);
+('11111111-1111-1111-1111-111111111111', 'maria.rodriguez@nutrition.com', '$2b$10$ykKqBdzuQLsfKxf7GHpvSe1S9dFR0/ynL.eJUid25QbSRhvlX.pT6', 'Maria', 'Rodriguez', '+1-555-0101', true);
 
 -- Nutriologist 2: Dr. John Smith
 INSERT INTO users (id, email, password, first_name, last_name, phone, is_active)
 VALUES
-('22222222-2222-2222-2222-222222222222', 'john.smith@nutrition.com', '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy', 'John', 'Smith', '+1-555-0102', true);
+('22222222-2222-2222-2222-222222222222', 'john.smith@nutrition.com', '$2b$10$ykKqBdzuQLsfKxf7GHpvSe1S9dFR0/ynL.eJUid25QbSRhvlX.pT6', 'John', 'Smith', '+1-555-0102', true);
 
 -- Patient 1: Sarah Johnson
 INSERT INTO users (id, email, password, first_name, last_name, phone, is_active)
 VALUES
-('33333333-3333-3333-3333-333333333333', 'sarah.johnson@email.com', '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy', 'Sarah', 'Johnson', '+1-555-0201', true);
+('33333333-3333-3333-3333-333333333333', 'sarah.johnson@email.com', '$2b$10$ykKqBdzuQLsfKxf7GHpvSe1S9dFR0/ynL.eJUid25QbSRhvlX.pT6', 'Sarah', 'Johnson', '+1-555-0201', true);
 
 -- Patient 2: Michael Chen
 INSERT INTO users (id, email, password, first_name, last_name, phone, is_active)
 VALUES
-('44444444-4444-4444-4444-444444444444', 'michael.chen@email.com', '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy', 'Michael', 'Chen', '+1-555-0202', true);
+('44444444-4444-4444-4444-444444444444', 'michael.chen@email.com', '$2b$10$ykKqBdzuQLsfKxf7GHpvSe1S9dFR0/ynL.eJUid25QbSRhvlX.pT6', 'Michael', 'Chen', '+1-555-0202', true);
 
 -- Patient 3: Emma Davis
 INSERT INTO users (id, email, password, first_name, last_name, phone, is_active)
 VALUES
-('55555555-5555-5555-5555-555555555555', 'emma.davis@email.com', '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy', 'Emma', 'Davis', '+1-555-0203', true);
+('55555555-5555-5555-5555-555555555555', 'emma.davis@email.com', '$2b$10$ykKqBdzuQLsfKxf7GHpvSe1S9dFR0/ynL.eJUid25QbSRhvlX.pT6', 'Emma', 'Davis', '+1-555-0203', true);
 
 -- ============================================
 -- USER ROLES
